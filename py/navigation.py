@@ -3,7 +3,9 @@
 from __future__ import annotations
 from typing import TYPE_CHECKING
 
-from textual.widgets import DataTable
+from textual.widgets import DataTable, Collapsible
+from textual.widgets._collapsible import CollapsibleTitle
+from textual.containers import VerticalScroll
 
 if TYPE_CHECKING:
     from textual.app import App as _Base
@@ -21,6 +23,26 @@ class NavigationMixin(_Base):
         return self.query(DataTable).first()
 
     def _cycle_focus(self, direction: int) -> None:
+        panel = self.query_one("#comments", VerticalScroll)
+        if panel.display:
+            collapsibles = list(panel.query(Collapsible))
+            if collapsibles:
+                # Walk up from focused widget to find parent Collapsible
+                current = None
+                node = self.focused
+                while node is not None:
+                    if isinstance(node, Collapsible) and node in collapsibles:
+                        current = node
+                        break
+                    node = node.parent
+                if current:
+                    idx = collapsibles.index(current)
+                    target = collapsibles[(idx + direction) % len(collapsibles)]
+                else:
+                    target = collapsibles[0 if direction == 1 else -1]
+                target.query_one(CollapsibleTitle).focus()
+                target.scroll_visible()
+                return
         tables = list(self.query(DataTable))
         focused = self.focused
         if isinstance(focused, DataTable) and focused in tables:

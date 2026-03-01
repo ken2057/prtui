@@ -33,7 +33,8 @@ class GhMail(NavigationMixin, App):
         Binding("tab", "focus_next_table", "Next Table", show=False, priority=True),
         Binding("shift+tab", "focus_prev_table", "Prev Table", show=False, priority=True),
         Binding("o", "open_pr", "Open in Browser"),
-        Binding("enter", "toggle_comments", "Comments", priority=True),
+        Binding("enter", "open_comments", "Comments", priority=True),
+        Binding("escape", "close_comments", "Close", show=False, priority=True),
     ]
 
     def compose(self) -> ComposeResult:
@@ -55,16 +56,14 @@ class GhMail(NavigationMixin, App):
     def _fetch_worker(self) -> None:
         """Fetch/update PRs and refresh tables."""
         try:
-            show_loading = not store.has_data()
-            if show_loading:
+            if not store.has_data():
                 self.call_from_thread(self._show_loading, True)
-            try:
-                ghapi.poll_for_updates(
-                    on_progress=lambda msg: self.call_from_thread(
-                        self.notify, msg)
-                )
-            finally:
-                if show_loading:
+                try:
+                    ghapi.poll_for_updates(
+                        on_progress=lambda msg: self.call_from_thread(
+                            self.notify, msg)
+                    )
+                finally:
                     self.call_from_thread(self._show_loading, False)
             self.prs = {
                 "prs": store.get_pull_requests("mine"),
@@ -116,7 +115,7 @@ class GhMail(NavigationMixin, App):
             table.clear(columns=True)
             table.cursor_type = "row"
             table.zebra_stripes = True
-            table.add_columns("State", "Repo", "Title", "Author", "Approvals", "CI")
+            table.add_columns("State", "#", "Repo", "Title", "Author", "Approvals", "CI")
             for pr in prs:
                 ci = "✓" if pr["jenkins_approved"] else ""
                 approvals = str(pr["approval_count"]) if pr["approval_count"] else ""
@@ -124,6 +123,7 @@ class GhMail(NavigationMixin, App):
                     approvals = f"✓ {approvals}".strip()
                 table.add_row(
                     STATE_DISPLAY[pr["state"]],
+                    str(pr["number"]),
                     pr["repo"],
                     pr["title"],
                     pr["author"],
@@ -187,11 +187,13 @@ class GhMail(NavigationMixin, App):
         panel.display = True
         panel.focus()
 
-    def action_toggle_comments(self) -> None:
+    def action_open_comments(self) -> None:
+        if not self.query_one("#comments", VerticalScroll).display:
+            self._show_comments()
+
+    def action_close_comments(self) -> None:
         if self.query_one("#comments", VerticalScroll).display:
             self._hide_comments()
-        else:
-            self._show_comments()
 
     def action_open_pr(self) -> None:
         key = self._selected_pr_key()

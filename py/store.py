@@ -59,10 +59,16 @@ def get_comments(repo, number):
         comments = prdb.get_comments(cursor, number, repo)
 
     if JENKINS_USER:
-        jenkins = [c for c in comments if c["user"] == JENKINS_USER]
+        jenkins_comments = [c for c in comments
+                            if c["user"] == JENKINS_USER and c["type"] == "comment"]
+        jenkins_reviews = [c for c in comments
+                           if c["user"] == JENKINS_USER and c["type"] != "comment"]
         comments = [c for c in comments if c["user"] != JENKINS_USER]
-        if jenkins:
-            comments.append(jenkins[-1])
+        if jenkins_comments:
+            comments.append(jenkins_comments[0])
+        if jenkins_reviews:
+            comments.append(jenkins_reviews[0])
+        comments.sort(key=lambda c: c["created_at"], reverse=True)
 
     # Group into threads
     threads = {}

@@ -1,0 +1,19 @@
+DataTable {
+    height: 1fr;
+}
+DataTable:blur > .datatable--cursor {
+    color: $text;
+}
+DataTable:focus > .datatable--cursor {
+    background: $accent;
+    color: $text;
+}
+LoadingIndicator {
+    display: none;
+}
+#status {
+    height: 1;
+    background: $surface;
+    color: $text-muted;
+    padding: 0 1;
+}

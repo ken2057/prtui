@@ -1,2 +1,4 @@
-# prtui
-Terminal UI for keeping track of GitHub pull requests
+## Install
+
+1. create a python venv and source it
+

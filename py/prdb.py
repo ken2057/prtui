@@ -114,3 +114,21 @@ def get_comments(cursor, pr_number, pr_repo):
         (pr_number, pr_repo)
     )
     return [dict(r) for r in cursor.fetchall()]
+
+def get_latest_comment(cursor, pr_number, pr_repo, user, *, type=None, not_type=None):
+    """Return the most recent comment row by user, optionally filtered by type."""
+    sql = ("SELECT id, pr_number, pr_repo, user, path, diff_hunk,"
+           " created_at, updated_at, in_reply_to_id, comment, type"
+           " FROM COMMENTS"
+           " WHERE pr_number = ? AND pr_repo = ? AND user = ?")
+    params = [pr_number, pr_repo, user]
+    if type:
+        sql += " AND type = ?"
+        params.append(type)
+    elif not_type:
+        sql += " AND type != ?"
+        params.append(not_type)
+    sql += " ORDER BY created_at DESC LIMIT 1"
+    cursor.execute(sql, params)
+    row = cursor.fetchone()
+    return dict(row) if row else None

@@ -32,7 +32,8 @@ class CommentsPanel(VerticalScroll):
         # Shadow app bindings that don't apply here
         Binding("r", "noop", show=False),
         Binding("o", "noop", show=False),
-        Binding("c", "noop", show=False),
+        Binding("j", "noop", show=False),
+        Binding("c", "close_comments", show=False),
     ]
 
     def action_close_comments(self) -> None:
@@ -52,10 +53,10 @@ class GhMail(NavigationMixin, App):
         Binding("q", "quit", "Quit"),
         Binding("r", "mark_read", "Mark Read"),
         Binding("o", "open_pr", "Open in Browser"),
+        Binding("j", "open_ci", "Open CI"),
         Binding("c", "open_comments", "Open Comments"),
         Binding("tab", "focus_next_table", "Next Table", show=True),
         Binding("shift+tab", "focus_prev_table", "Prev Table", show=True),
-
     ]
 
     def compose(self) -> ComposeResult:
@@ -252,6 +253,17 @@ class GhMail(NavigationMixin, App):
             return
         repo, number = key
         webbrowser.open(store.get_pr_url(repo, number))
+
+    def action_open_ci(self) -> None:
+        key = self._selected_pr_key()
+        if not key:
+            return
+        repo, number = key
+        url = store.get_ci_url(repo, number)
+        if url:
+            webbrowser.open(url)
+        else:
+            self.notify("No CI link found", severity="warning")
 
 
 if __name__ == "__main__":

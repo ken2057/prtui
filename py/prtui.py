@@ -167,8 +167,10 @@ class GhMail(NavigationMixin, App):
                     key=f"{pr['repo']}#{pr['number']}",
                 )
 
-        # Restore focus or default to first table
-        if focused_id:
+        # Restore focus or default to first table (skip if comments panel is open)
+        if self.query_one("#comments", CommentsPanel).display:
+            pass
+        elif focused_id:
             table = self.query_one(f"#{focused_id}", DataTable)
             row = min(focused_row, table.row_count - 1)
             if row >= 0:

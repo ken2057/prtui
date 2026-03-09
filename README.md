@@ -67,3 +67,11 @@ prtui
 ## Data
 
 PR data is stored in a SQLite database at `/tmp/prtui.db`. Delete it to force a full re-fetch.
+
+
+## Configuration
+In order to have working quick links to CI and ticketing system, optional
+regex configurations can be set in the config.
+
+Ticket: the PR title is scanned and matched against regex
+CI: The latest comment from the CI user is scanned and matched against regex

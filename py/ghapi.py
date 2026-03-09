@@ -135,6 +135,8 @@ def get_reviews(pr_number, repo):
     for r in _paginate(f"{API}/repos/{repo}/pulls/{pr_number}/reviews"):
         user = r["user"]["login"]
         state = r["state"]
+        if state == "PENDING":
+            continue
         if state != "COMMENTED":
             latest_state[user] = state
             body = f"**[{state}]** {r['body']}" if r["body"] else f"**[{state}]**"

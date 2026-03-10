@@ -103,7 +103,6 @@ class GhMail(NavigationMixin, App):
         Binding("b", "open_ci", "Open CI"),
         Binding("t", "open_ticket", "Open Ticket"),
         Binding("c", "open_comments", "Open Comments"),
-        Binding("ctrl+d", "toggle_dark", "Toggle Theme", show=False),
         Binding("tab", "focus_next_table", "Next Table", show=True),
         Binding("shift+tab", "focus_prev_table", "Prev Table", show=True),
         Binding("j", "cursor_down", show=False),

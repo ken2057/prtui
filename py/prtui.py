@@ -16,6 +16,7 @@ import ghapi
 import config
 from navigation import NavigationMixin
 import comments
+import theme_listener
 
 STATE_COL = 0
 POLL_INTERVAL = int(config.read_config().get("poll-interval", 120))
@@ -130,6 +131,9 @@ class GhMail(NavigationMixin, App):
         self.query_one("#group-requested").border_title = "Team Requested"
         threading.Thread(target=self._fetch_worker, daemon=True).start()
         self.set_interval(POLL_INTERVAL, self._poll_updates)
+        theme_listener.start(
+            lambda t: self.call_from_thread(setattr, self, "theme", t)
+        )
 
     def watch_theme(self, theme: str) -> None:
         if not getattr(self, "_initializing", False):

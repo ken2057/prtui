@@ -22,8 +22,8 @@ STATE_COL = 0
 POLL_INTERVAL = int(config.read_config().get("poll-interval", 120))
 
 STATE_DISPLAY = {
-    "unread": "● new",
-    "read": "  read",
+    "unread": "✉",
+    "read": "📭",
 }
 
 class CommentsPanel(VerticalScroll):
@@ -207,7 +207,7 @@ class GhMail(NavigationMixin, App):
             table.clear(columns=True)
             table.cursor_type = "row"
             table.zebra_stripes = True
-            table.add_columns("State", "#", "Repo", "Title", "Author", "Approvals", "CI")
+            table.add_columns("", "#", "Repo", "Title", "Author", "App", "CI")
             for pr in prs:
                 ci = "✓" if pr["jenkins_approved"] else ""
                 approvals = str(pr["approval_count"]) if pr["approval_count"] else ""
@@ -218,8 +218,8 @@ class GhMail(NavigationMixin, App):
                     STATE_DISPLAY[pr["state"]],
                     str(pr["number"]),
                     pr["repo"],
-                    pr["title"],
-                    pr["author"],
+                    pr["title"][:40] + ("…" if len(pr["title"]) > 40 else ""),
+                    pr["author"][:15] + ("…" if len(pr["author"]) > 15 else ""),
                     approvals,
                     ci,
                 ]

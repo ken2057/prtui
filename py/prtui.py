@@ -277,6 +277,10 @@ class GhMail(NavigationMixin, App):
             except Exception:
                 pass
 
+        # Fixed columns: ●(1) + #(5) + Repo(16) + Author(15) + App(4) + CI(2) + Mrg(3)
+        # + column padding (8 cols × 2) + border/padding (4) ≈ 62
+        title_width = max(20, self.size.width - 62)
+
         for table_id, prs in self.prs.items():
             table = self.query_one(f"#{table_id}", DataTable)
             table.clear(columns=True)
@@ -295,7 +299,7 @@ class GhMail(NavigationMixin, App):
                 cells = [
                     str(pr["number"]),
                     pr["repo"],
-                    pr["title"][:40] + ("…" if len(pr["title"]) > 40 else ""),
+                    pr["title"][:title_width] + ("…" if len(pr["title"]) > title_width else ""),
                     pr["author"][:15] + ("…" if len(pr["author"]) > 15 else ""),
                     approvals,
                     ci,
@@ -326,6 +330,10 @@ class GhMail(NavigationMixin, App):
         """Return (repo, number) from a specific row's key."""
         row_key, _ = table.coordinate_to_cell_key(Coordinate(row, 0))
         return row_key.value.rsplit("#", 1)
+
+    def on_resize(self, event) -> None:
+        if hasattr(self, "prs"):
+            self._populate_tables(preserve_focus=True)
 
     def on_data_table_row_highlighted(self, event) -> None:
         # Update subtitle as the cursor moves within a table.

@@ -22,8 +22,8 @@ STATE_COL = 0
 POLL_INTERVAL = int(config.read_config().get("poll-interval", 120))
 
 STATE_DISPLAY = {
-    "unread": "✉",
-    "read": "📭",
+    "unread": "●",
+    "read": "●",
 }
 
 class CommentsPanel(VerticalScroll):
@@ -290,8 +290,9 @@ class GhMail(NavigationMixin, App):
                     approvals = f"✓ {approvals}".strip()
                 mrg = {1: "✓", 0: "✗"}.get(pr.get("mergeable"), "")
                 style = "dim" if pr["state"] == "read" else ""
+                state_text = Text(STATE_DISPLAY[pr["state"]],
+                                  style="dim" if pr["state"] == "read" else "red")
                 cells = [
-                    STATE_DISPLAY[pr["state"]],
                     str(pr["number"]),
                     pr["repo"],
                     pr["title"][:40] + ("…" if len(pr["title"]) > 40 else ""),
@@ -301,7 +302,8 @@ class GhMail(NavigationMixin, App):
                     mrg,
                 ]
                 table.add_row(
-                    *(Text(c, style=style) for c in cells),
+                    state_text,
+                    *(Text(c, style=style) for c in cells[1:]),
                     key=f"{pr['repo']}#{pr['number']}",
                 )
 
@@ -377,7 +379,7 @@ class GhMail(NavigationMixin, App):
         store.mark_read(repo, number)
         prs[row]["state"] = "read"
         prs[row]["read_at"] = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
-        table.update_cell_at(Coordinate(row, STATE_COL), STATE_DISPLAY["read"])
+        table.update_cell_at(Coordinate(row, STATE_COL), Text(STATE_DISPLAY["read"], style="dim"))
         # Dim the entire row
         for col in range(len(table.columns)):
             val = table.get_cell_at(Coordinate(row, col))

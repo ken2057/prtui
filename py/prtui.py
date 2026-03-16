@@ -10,6 +10,8 @@ from textual.screen import ModalScreen
 from rich.text import Text
 import threading
 import webbrowser
+import subprocess
+from pathlib import Path
 from datetime import datetime, timezone
 import store
 import ghapi
@@ -194,6 +196,7 @@ class GhMail(NavigationMixin, App):
             id="tables",
         )
         yield CommentsPanel(id="comments")
+        yield Vertical(Label("", id="update-banner"), id="update-banner-wrap")
         yield Footer()
 
     def on_mount(self) -> None:
@@ -234,6 +237,7 @@ class GhMail(NavigationMixin, App):
             self.call_from_thread(self._populate_tables)
             # Immediate poll after initial render
             self._do_poll(preserve_focus=True)
+            self._check_for_update()
         except Exception as e:
             self.call_from_thread(self.notify, f"Fetch failed: {e}",
                                   severity="error")
@@ -260,7 +264,48 @@ class GhMail(NavigationMixin, App):
             except Exception as e:
                 self.call_from_thread(self.notify, f"Poll failed: {e}",
                                       severity="error")
+            self._check_for_update()
         threading.Thread(target=worker, daemon=True).start()
+
+    def _check_for_update(self) -> None:
+        """Check if a newer version of prtui is available via GitHub API."""
+        import requests as _requests
+        repo_dir = Path(__file__).resolve().parent.parent
+        try:
+            local = subprocess.run(
+                ["git", "-C", str(repo_dir), "rev-parse", "HEAD"],
+                capture_output=True, text=True, timeout=5,
+            ).stdout.strip()
+            if not local:
+                return
+            branch = subprocess.run(
+                ["git", "-C", str(repo_dir), "rev-parse", "--abbrev-ref", "HEAD"],
+                capture_output=True, text=True, timeout=5,
+            ).stdout.strip()
+            if not branch or branch == "HEAD":
+                return
+            cfg = config.read_config()
+            headers = {
+                "Authorization": f"Bearer {cfg['token']}",
+                "Accept": "application/vnd.github+json",
+            }
+            resp = _requests.get(
+                f"https://api.github.com/repos/sharyari/prtui/commits/{branch}",
+                headers=headers, timeout=10,
+            )
+            if resp.status_code != 200:
+                return
+            remote_sha = resp.json().get("sha", "")
+            if remote_sha and remote_sha != local:
+                self.call_from_thread(self._show_update_banner, "update available")
+
+        except Exception as e:
+            self.call_from_thread(self.notify, f"Update check failed: {e}",
+                                  severity="warning")
+
+    def _show_update_banner(self, message: str) -> None:
+        self.query_one("#update-banner", Label).update(message)
+        self.query_one("#update-banner-wrap").display = True
 
     def _show_loading(self, show: bool) -> None:
         self.query_one(LoadingIndicator).display = show

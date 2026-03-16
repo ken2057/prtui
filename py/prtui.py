@@ -324,7 +324,7 @@ class GhMail(NavigationMixin, App):
 
         # Fixed columns: ●(1) + #(5) + Repo(16) + Author(15) + App(4) + CI(2) + Mrg(3)
         # + column padding (8 cols × 2) + border/padding (4) ≈ 62
-        title_width = max(20, self.size.width - 62)
+        title_width = max(20, self.size.width - 70)
 
         for table_id, prs in self.prs.items():
             table = self.query_one(f"#{table_id}", DataTable)
@@ -352,7 +352,7 @@ class GhMail(NavigationMixin, App):
                 ]
                 table.add_row(
                     state_text,
-                    *(Text(c, style=style) for c in cells[1:]),
+                    *(Text(c, style=style) for c in cells),
                     key=f"{pr['repo']}#{pr['number']}",
                 )
 

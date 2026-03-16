@@ -7,7 +7,6 @@ import config
 _cfg = config.read_config()
 JENKINS_USER = _cfg["jenkins-user"]
 USER = _cfg["username"]
-_CI_URL_PATTERN = _cfg.get("ci-url-pattern", "")
 _TICKET_PATTERN = _cfg.get("ticket-pattern", "")
 _TICKET_URL = _cfg.get("ticket-url", "")
 
@@ -53,6 +52,12 @@ def mark_read(repo, number):
         prdb.pr_mark_read(cursor, repo, number)
 
 
+def get_ci_url(repo, number):
+    """Return the stored CI URL for a PR, or None."""
+    with prdb.connection() as cursor:
+        return prdb.pr_get_ci_url(cursor, repo, number)
+
+
 def get_pr_url(repo, number):
     """Return the GitHub URL for a PR."""
     return f"https://github.com/{repo}/pull/{number}"
@@ -68,35 +73,12 @@ def get_ticket_url(title):
     return _TICKET_URL.format(ticket=match.group(0))
 
 
-def get_ci_url(repo, number):
-    """Extract the CI URL from the latest Jenkins comment, if configured."""
-    if not _CI_URL_PATTERN or not JENKINS_USER:
-        return None
-    with prdb.connection() as cursor:
-        row = prdb.get_latest_comment(
-            cursor, number, repo, JENKINS_USER, type="comment")
-    if not row:
-        return None
-    match = re.search(_CI_URL_PATTERN, row["comment"])
-    return match.group(0) if match else None
-
-
 def get_comments(repo, number):
     """Fetch comments for a PR, grouped into threads."""
     with prdb.connection() as cursor:
         comments = prdb.get_comments(cursor, number, repo)
-
         if JENKINS_USER:
             comments = [c for c in comments if c["user"] != JENKINS_USER]
-            jc = prdb.get_latest_comment(
-                cursor, number, repo, JENKINS_USER, type="comment")
-            if jc:
-                comments.append(jc)
-            jr = prdb.get_latest_comment(
-                cursor, number, repo, JENKINS_USER, not_type="comment")
-            if jr:
-                comments.append(jr)
-            comments.sort(key=lambda c: c["created_at"], reverse=True)
 
     # Group into threads
     threads = {}

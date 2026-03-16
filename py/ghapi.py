@@ -15,6 +15,7 @@ HEADERS = {
 REPOS = _cfg["repos"]
 USER = _cfg["username"]
 TEAM = _cfg.get("team", "")
+_CI_URL_PATTERN = _cfg.get("ci-url-pattern", "")
 
 
 def _paginate(url, params=None):
@@ -216,32 +217,52 @@ def get_commits(pr_number, repo):
     return commits
 
 
-def _get_mergeable(pr_number, repo):
-    """Return mergeable status (True/False/None) from the individual PR endpoint.
+def _get_pr_details(pr_number, repo):
+    """Fetch mergeable status, CI URL, and SHAs for a PR in one API call sequence.
 
-    True only if GitHub says mergeable AND mergeable_state is not "blocked"
-    (blocked means e.g. codeowner approval is still required).
-    None means GitHub hasn't computed it yet.
+    Returns (mergeable, ci_url, head_sha, ci_sha) where ci_url/ci_sha are None
+    if Jenkins hasn't run on the current HEAD (caller should preserve any
+    previously stored values).
     """
+    import re
     data = requests.get(f"{API}/repos/{repo}/pulls/{pr_number}", headers=HEADERS)
     data.raise_for_status()
     data = data.json()
+
+    # Mergeability
     mergeable = data.get("mergeable")
-    if mergeable is None:
-        return None
-    if not mergeable:
-        return False
-    return data.get("mergeable_state") != "blocked"
+    if mergeable is not None:
+        if not mergeable:
+            mergeable = False
+        else:
+            mergeable = data.get("mergeable_state") != "blocked"
+
+    # CI URL from commit statuses on the current HEAD
+    ci_url = None
+    ci_sha = None
+    sha = data["head"]["sha"]
+    if _CI_URL_PATTERN:
+        statuses = requests.get(
+            f"{API}/repos/{repo}/commits/{sha}/statuses", headers=HEADERS)
+        statuses.raise_for_status()
+        for s in statuses.json():  # newest first
+            match = re.search(_CI_URL_PATTERN, s.get("target_url", ""))
+            if match:
+                ci_url = match.group(0)
+                ci_sha = sha
+                break
+
+    return mergeable, ci_url, sha, ci_sha
 
 
 def _fetch_pr_details(pr):
-    """Fetch comments, reviews, and mergeability for a single PR. Returns (pr, comments)."""
+    """Fetch comments, reviews, mergeability, and CI URL for a single PR."""
     comments = get_comments(pr["number"], pr["repo"])
     approvers, review_comments = get_reviews(pr["number"], pr["repo"])
     comments.extend(review_comments)
     comments.extend(get_commits(pr["number"], pr["repo"]))
     pr["approvals"] = ",".join(approvers)
-    pr["mergeable"] = _get_mergeable(pr["number"], pr["repo"])
+    pr["mergeable"], pr["ci_url"], pr["head_sha"], pr["ci_sha"] = _get_pr_details(pr["number"], pr["repo"])
     return pr, comments
 
 

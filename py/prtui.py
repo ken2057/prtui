@@ -134,6 +134,36 @@ class HelpScreen(ModalScreen):
         self.dismiss()
 
 
+class CiWarningScreen(ModalScreen):
+    """Warns that the stored CI build is for an older commit."""
+    BINDINGS = [
+        Binding("escape", "dismiss", show=False),
+        Binding("enter", "dismiss", show=False),
+    ]
+
+    def __init__(self, head_sha: str, ci_sha: str):
+        super().__init__()
+        self._head_sha = head_sha
+        self._ci_sha = ci_sha
+
+    def compose(self) -> ComposeResult:
+        yield Grid(
+            Label(
+                f"CI build is for an older commit.\n"
+                f"Head:  {self._head_sha[:12]}\n"
+                f"CI:    {self._ci_sha[:12]}",
+                id="ci-warn-question"),
+            Button("OK", variant="warning", id="ci-warn-ok"),
+            id="ci-warn-dialog",
+        )
+
+    def on_button_pressed(self, event: Button.Pressed) -> None:
+        self.dismiss()
+
+    def action_dismiss(self) -> None:
+        self.dismiss()
+
+
 class GhMail(NavigationMixin, App):
     CSS_PATH = "prtui.tcss"
 
@@ -391,11 +421,18 @@ class GhMail(NavigationMixin, App):
         if not key:
             return
         repo, number = key
-        url = store.get_ci_url(repo, number)
-        if url:
-            webbrowser.open(url)
-        else:
+        url = store.get_ci_url(repo, int(number))
+        if not url:
             self.notify("No CI link found", severity="warning")
+            return
+        table = self._focused_table()
+        pr = self.prs.get(table.id or "", [])[table.cursor_row]
+        # Warn if the CI ran on an older commit than the current HEAD
+        if pr.get("head_sha") and pr.get("ci_sha") and pr["head_sha"] != pr["ci_sha"]:
+            self.push_screen(CiWarningScreen(pr["head_sha"], pr["ci_sha"]),
+                             callback=lambda _: webbrowser.open(url))
+        else:
+            webbrowser.open(url)
 
     def action_open_ticket(self) -> None:
         table = self._focused_table()

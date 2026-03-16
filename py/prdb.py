@@ -16,6 +16,9 @@ pr_table_creation_query = """
         read_at CHAR(30),
         approvals TEXT,
         mergeable INT,
+        ci_url TEXT,
+        head_sha TEXT,
+        ci_sha TEXT,
         PRIMARY KEY(repo, number)
     );
 """
@@ -59,26 +62,48 @@ def create_pr_table(cursor):
         cursor.execute("ALTER TABLE PRS ADD COLUMN mergeable INT")
     except Exception:
         pass
+    # Migrate existing DBs that predate the ci_url column.
+    try:
+        cursor.execute("ALTER TABLE PRS ADD COLUMN ci_url TEXT")
+    except Exception:
+        pass
+    # Migrate existing DBs that predate the head_sha/ci_sha columns.
+    try:
+        cursor.execute("ALTER TABLE PRS ADD COLUMN head_sha TEXT")
+        cursor.execute("ALTER TABLE PRS ADD COLUMN ci_sha TEXT")
+    except Exception:
+        pass
 
 def pr_insert(cursor, pr):
     cursor.execute(
-        "INSERT INTO PRS (number, repo, type, author, title, updated_at, approvals, mergeable)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO PRS (number, repo, type, author, title, updated_at, approvals, mergeable, ci_url, head_sha, ci_sha)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         " ON CONFLICT(repo, number) DO UPDATE SET"
         " type=excluded.type, author=excluded.author,"
         " title=excluded.title, updated_at=excluded.updated_at,"
-        " approvals=excluded.approvals, mergeable=excluded.mergeable",
+        " approvals=excluded.approvals, mergeable=excluded.mergeable,"
+        " ci_url=COALESCE(excluded.ci_url, ci_url),"
+        " head_sha=excluded.head_sha,"
+        " ci_sha=COALESCE(excluded.ci_sha, ci_sha)",
         (pr["number"], pr["repo"], pr["type"], pr["author"],
          pr["title"], pr["updated_at"], pr.get("approvals", ""),
-         pr.get("mergeable"))
+         pr.get("mergeable"), pr.get("ci_url"), pr.get("head_sha"), pr.get("ci_sha"))
     )
 
 def pr_get_all(cursor, type):
     cursor.execute(
         "SELECT number, repo, type, author, title, updated_at, read_at,"
-        " approvals, mergeable FROM PRS WHERE type=?", (type,)
+        " approvals, mergeable, ci_url, head_sha, ci_sha FROM PRS WHERE type=?", (type,)
     )
     return [dict(r) for r in cursor.fetchall()]
+
+def pr_get_ci_url(cursor, repo, number):
+    cursor.execute(
+        "SELECT ci_url FROM PRS WHERE repo = ? AND number = ?",
+        (repo, number)
+    )
+    row = cursor.fetchone()
+    return row["ci_url"] if row else None
 
 def pr_mark_read(cursor, repo, number):
     cursor.execute(
@@ -122,20 +147,4 @@ def get_comments(cursor, pr_number, pr_repo):
     )
     return [dict(r) for r in cursor.fetchall()]
 
-def get_latest_comment(cursor, pr_number, pr_repo, user, *, type=None, not_type=None):
-    """Return the most recent comment row by user, optionally filtered by type."""
-    sql = ("SELECT id, pr_number, pr_repo, user, path, diff_hunk,"
-           " created_at, updated_at, in_reply_to_id, comment, type"
-           " FROM COMMENTS"
-           " WHERE pr_number = ? AND pr_repo = ? AND user = ?")
-    params = [pr_number, pr_repo, user]
-    if type:
-        sql += " AND type = ?"
-        params.append(type)
-    elif not_type:
-        sql += " AND type != ?"
-        params.append(not_type)
-    sql += " ORDER BY created_at DESC LIMIT 1"
-    cursor.execute(sql, params)
-    row = cursor.fetchone()
-    return dict(row) if row else None
+

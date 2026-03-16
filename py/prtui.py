@@ -297,11 +297,37 @@ class GhMail(NavigationMixin, App):
                 return
             remote_sha = resp.json().get("sha", "")
             if remote_sha and remote_sha != local:
-                self.call_from_thread(self._show_update_banner, "update available")
+                if cfg.get("auto-update"):
+                    self._attempt_auto_update(repo_dir)
+                else:
+                    self.call_from_thread(self._show_update_banner, "update available")
 
         except Exception as e:
             self.call_from_thread(self.notify, f"Update check failed: {e}",
                                   severity="warning")
+
+    def _attempt_auto_update(self, repo_dir: Path) -> None:
+        """Try git pull; show result in the banner."""
+        log = repo_dir / "auto-update.log"
+        try:
+            result = subprocess.run(
+                ["git", "-C", str(repo_dir), "pull", "--ff-only"],
+                capture_output=True, text=True, timeout=30,
+            )
+            if result.returncode == 0:
+                self.call_from_thread(
+                    self._show_update_banner,
+                    "prtui updated — restart to use the new version")
+            else:
+                log.write_text(result.stdout + result.stderr)
+                self.call_from_thread(
+                    self._show_update_banner,
+                    "update available — auto-update failed")
+        except Exception as e:
+            log.write_text(str(e))
+            self.call_from_thread(
+                self._show_update_banner,
+                "update available — auto-update failed")
 
     def _show_update_banner(self, message: str) -> None:
         self.query_one("#update-banner", Label).update(message)

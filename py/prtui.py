@@ -410,7 +410,7 @@ class GhMail(NavigationMixin, App):
         # Update subtitle as the cursor moves within a table.
         table = event.data_table
         prs = self.prs.get(table.id or "", [])
-        if event.cursor_row < len(prs):
+        if 0 <= event.cursor_row < len(prs):
             self.sub_title = prs[event.cursor_row]["title"]
 
     def _on_screen_focused(self, focused) -> None:

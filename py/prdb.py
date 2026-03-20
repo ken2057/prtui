@@ -75,18 +75,20 @@ def create_pr_table(cursor):
         pass
 
 def pr_insert(cursor, pr):
+    read_at = pr["updated_at"] if pr["type"] == "mine" else None
     cursor.execute(
-        "INSERT INTO PRS (number, repo, type, author, title, updated_at, approvals, mergeable, ci_url, head_sha, ci_sha)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO PRS (number, repo, type, author, title, updated_at, read_at, approvals, mergeable, ci_url, head_sha, ci_sha)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         " ON CONFLICT(repo, number) DO UPDATE SET"
         " type=excluded.type, author=excluded.author,"
         " title=excluded.title, updated_at=excluded.updated_at,"
         " approvals=excluded.approvals, mergeable=excluded.mergeable,"
         " ci_url=COALESCE(excluded.ci_url, ci_url),"
         " head_sha=excluded.head_sha,"
-        " ci_sha=COALESCE(excluded.ci_sha, ci_sha)",
+        " ci_sha=COALESCE(excluded.ci_sha, ci_sha),"
+        " read_at=COALESCE(read_at, excluded.read_at)",
         (pr["number"], pr["repo"], pr["type"], pr["author"],
-         pr["title"], pr["updated_at"], pr.get("approvals", ""),
+         pr["title"], pr["updated_at"], read_at, pr.get("approvals", ""),
          pr.get("mergeable"), pr.get("ci_url"), pr.get("head_sha"), pr.get("ci_sha"))
     )
 

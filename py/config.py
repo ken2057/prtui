@@ -24,7 +24,7 @@ def read_config():
             repos.append(r)
     cfg["repos"] = repos
     cfg["jenkins-user"] = cfg.get("jenkins-user", "")
-    cfg["auto-update"] = cfg.get("auto-update", "true").strip().lower() != "false"
+    cfg["auto-update"] = cfg.get("auto-update", "false").strip().lower() != "false"
 
     return cfg
 

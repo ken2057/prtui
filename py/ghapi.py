@@ -41,6 +41,7 @@ def _search_prs(query, pr_type):
             "url": item["html_url"],
             "updated_at": item["updated_at"],
             "type": pr_type,
+            "draft": item.get("draft", False),
         }
         for item in _paginate(f"{API}/search/issues", {"q": query, "per_page": 100})
     ]
@@ -252,7 +253,7 @@ def _get_pr_details(pr_number, repo):
                 ci_sha = sha
                 break
 
-    return mergeable, ci_url, sha, ci_sha
+    return mergeable, ci_url, sha, ci_sha, data.get("draft", False)
 
 
 def _fetch_pr_details(pr):
@@ -262,7 +263,8 @@ def _fetch_pr_details(pr):
     comments.extend(review_comments)
     comments.extend(get_commits(pr["number"], pr["repo"]))
     pr["approvals"] = ",".join(approvers)
-    pr["mergeable"], pr["ci_url"], pr["head_sha"], pr["ci_sha"] = _get_pr_details(pr["number"], pr["repo"])
+    (pr["mergeable"], pr["ci_url"], pr["head_sha"],
+     pr["ci_sha"], pr["draft"]) = _get_pr_details(pr["number"], pr["repo"])
     return pr, comments
 
 

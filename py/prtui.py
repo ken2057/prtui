@@ -351,20 +351,21 @@ class GhMail(NavigationMixin, App):
 
         # Fixed columns: ●(1) + #(5) + Repo(16) + Author(15) + App(4) + CI(2) + Mrg(3)
         # + column padding (8 cols × 2) + border/padding (4) ≈ 62
-        title_width = max(20, self.size.width - 70)
+        title_width = max(20, self.size.width - 74)
 
         for table_id, prs in self.prs.items():
             table = self.query_one(f"#{table_id}", DataTable)
             table.clear(columns=True)
             table.cursor_type = "row"
             table.zebra_stripes = True
-            table.add_columns("", "#", "Repo", "Title", "Author", "App", "CI", "Mrg")
+            table.add_columns("", "#", "Repo", "Title", "Author", "App", "CI", "Mrg", "Dft")
             for pr in prs:
                 ci = "✓" if pr["jenkins_approved"] else ""
                 approvals = str(pr["approval_count"]) if pr["approval_count"] else ""
                 if pr.get("my_approved"):
                     approvals = f"✓ {approvals}".strip()
                 mrg = {1: "✓", 0: "✗"}.get(pr.get("mergeable"), "")
+                draft = "D" if pr.get("draft") else ""
                 style = "dim" if pr["state"] == "read" else ""
                 state_text = Text(STATE_DISPLAY[pr["state"]],
                                   style="dim" if pr["state"] == "read" else "red")
@@ -376,6 +377,7 @@ class GhMail(NavigationMixin, App):
                     approvals,
                     ci,
                     mrg,
+                    draft,
                 ]
                 table.add_row(
                     state_text,

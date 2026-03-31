@@ -19,6 +19,7 @@ pr_table_creation_query = """
         ci_url TEXT,
         head_sha TEXT,
         ci_sha TEXT,
+        draft INT DEFAULT 0,
         PRIMARY KEY(repo, number)
     );
 """
@@ -74,12 +75,17 @@ def create_pr_table(cursor):
         cursor.execute("ALTER TABLE PRS ADD COLUMN ci_sha TEXT")
     except Exception:
         pass
+    # Migrate existing DBs that predate the draft column.
+    try:
+        cursor.execute("ALTER TABLE PRS ADD COLUMN draft INT DEFAULT 0")
+    except Exception:
+        pass
 
 def pr_insert(cursor, pr):
     read_at = pr["updated_at"] if pr["type"] == "mine" else None
     cursor.execute(
-        "INSERT INTO PRS (number, repo, type, author, title, updated_at, read_at, approvals, mergeable, ci_url, head_sha, ci_sha)"
-        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
+        "INSERT INTO PRS (number, repo, type, author, title, updated_at, read_at, approvals, mergeable, ci_url, head_sha, ci_sha, draft)"
+        " VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)"
         " ON CONFLICT(repo, number) DO UPDATE SET"
         " type=excluded.type, author=excluded.author,"
         " title=excluded.title, updated_at=excluded.updated_at,"
@@ -87,16 +93,18 @@ def pr_insert(cursor, pr):
         " ci_url=COALESCE(excluded.ci_url, ci_url),"
         " head_sha=excluded.head_sha,"
         " ci_sha=COALESCE(excluded.ci_sha, ci_sha),"
+        " draft=excluded.draft,"
         " read_at=COALESCE(read_at, excluded.read_at)",
         (pr["number"], pr["repo"], pr["type"], pr["author"],
          pr["title"], pr["updated_at"], read_at, pr.get("approvals", ""),
-         pr.get("mergeable"), pr.get("ci_url"), pr.get("head_sha"), pr.get("ci_sha"))
+         pr.get("mergeable"), pr.get("ci_url"), pr.get("head_sha"), pr.get("ci_sha"),
+         int(bool(pr.get("draft"))))
     )
 
 def pr_get_all(cursor, type):
     cursor.execute(
         "SELECT number, repo, type, author, title, updated_at, read_at,"
-        " approvals, mergeable, ci_url, head_sha, ci_sha FROM PRS WHERE type=?", (type,)
+        " approvals, mergeable, ci_url, head_sha, ci_sha, draft FROM PRS WHERE type=?", (type,)
     )
     return [dict(r) for r in cursor.fetchall()]
 

@@ -239,6 +239,7 @@ def _get_pr_details(pr_number, repo):
             mergeable = data.get("mergeable_state") != "blocked"
 
     # CI URL from commit statuses on the current HEAD
+    # Prefer a pending status (active run) over completed ones.
     ci_url = None
     ci_sha = None
     sha = data["head"]["sha"]
@@ -246,12 +247,21 @@ def _get_pr_details(pr_number, repo):
         statuses = requests.get(
             f"{API}/repos/{repo}/commits/{sha}/statuses", headers=HEADERS)
         statuses.raise_for_status()
+        pending_url = None
+        completed_url = None
         for s in statuses.json():  # newest first
             match = re.search(_CI_URL_PATTERN, s.get("target_url", ""))
             if match:
-                ci_url = match.group(0)
-                ci_sha = sha
-                break
+                if s["state"] == "pending" and pending_url is None:
+                    pending_url = match.group(0)
+                elif s["state"] != "pending" and completed_url is None:
+                    completed_url = match.group(0)
+                if pending_url and completed_url:
+                    break
+        chosen = pending_url or completed_url
+        if chosen:
+            ci_url = chosen
+            ci_sha = sha
 
     return mergeable, ci_url, sha, ci_sha, data.get("draft", False)
 

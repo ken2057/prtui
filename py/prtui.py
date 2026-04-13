@@ -361,14 +361,14 @@ class GhMail(NavigationMixin, App):
             table.clear(columns=True)
             table.cursor_type = "row"
             table.zebra_stripes = True
-            table.add_columns("", "#", "Repo", "Title", "Author", "App", "CI", "Mrg", "Dft")
+            table.add_columns("", "#", "Repo", "Title", "Author", "App", "CI", "Mrg", "Rdy")
             for pr in prs:
                 ci = "✓" if pr["jenkins_approved"] else ""
                 approvals = str(pr["approval_count"]) if pr["approval_count"] else ""
                 if pr.get("my_approved"):
                     approvals = f"✓ {approvals}".strip()
                 mrg = {1: "✓", 0: "✗"}.get(pr.get("mergeable"), "")
-                draft = "D" if pr.get("draft") else ""
+                draft = "✗" if pr.get("draft") else "✓"
                 style = "dim" if pr["state"] == "read" else ""
                 state_text = Text(STATE_DISPLAY[pr["state"]],
                                   style="dim" if pr["state"] == "read" else "red")

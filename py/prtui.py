@@ -194,6 +194,7 @@ class GhMail(NavigationMixin, App):
             Vertical(DataTable(id="prs"), id="group-prs", classes="table-group"),
             Vertical(DataTable(id="reviewer"), id="group-reviewer", classes="table-group"),
             Vertical(DataTable(id="requested"), id="group-requested", classes="table-group"),
+            Vertical(DataTable(id="custom"), id="group-custom", classes="table-group"),
             id="tables",
         )
         yield CommentsPanel(id="comments")
@@ -207,6 +208,12 @@ class GhMail(NavigationMixin, App):
         self.query_one("#group-prs").border_title = "My PRs"
         self.query_one("#group-reviewer").border_title = "Reviewing"
         self.query_one("#group-requested").border_title = "Team Requested"
+        _cq = config.read_config().get("custom-query", "")
+        if _cq:
+            _label = config.read_config().get("custom-query-label", "Custom")
+            self.query_one("#group-custom").border_title = _label
+        else:
+            self.query_one("#group-custom").display = False
         self.watch(self.screen, "focused", self._on_screen_focused)
         threading.Thread(target=self._fetch_worker, daemon=True).start()
         self.set_interval(POLL_INTERVAL, self._poll_updates)
@@ -235,6 +242,8 @@ class GhMail(NavigationMixin, App):
                 "reviewer": store.get_pull_requests("reviewer"),
                 "requested": store.get_pull_requests("requested"),
             }
+            if config.read_config().get("custom-query"):
+                self.prs["custom"] = store.get_pull_requests("custom")
             self.call_from_thread(self._populate_tables)
             # Immediate poll after initial render
             self._do_poll(preserve_focus=True)
@@ -254,6 +263,8 @@ class GhMail(NavigationMixin, App):
             "reviewer": store.get_pull_requests("reviewer"),
             "requested": store.get_pull_requests("requested"),
         }
+        if config.read_config().get("custom-query"):
+            new_prs["custom"] = store.get_pull_requests("custom")
         if new_prs != self.prs:
             self.prs = new_prs
             self.call_from_thread(self._populate_tables, preserve_focus)

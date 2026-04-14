@@ -43,7 +43,7 @@ class NavigationMixin(_Base):
                 target.query_one(CollapsibleTitle).focus()
                 target.scroll_visible()
                 return
-        tables = list(self.query(DataTable))
+        tables = [t for t in self.query(DataTable) if t.display]
         focused = self.focused
         if isinstance(focused, DataTable) and focused in tables:
             idx = tables.index(focused)

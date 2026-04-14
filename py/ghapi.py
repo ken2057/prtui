@@ -16,6 +16,7 @@ REPOS = _cfg["repos"]
 USER = _cfg["username"]
 TEAM = _cfg.get("team", "")
 _CI_URL_PATTERN = _cfg.get("ci-url-pattern", "")
+_CUSTOM_QUERY = _cfg.get("custom-query", "")
 
 
 def _paginate(url, params=None):
@@ -306,6 +307,16 @@ def poll_for_updates(on_progress=None):
         old_ts = old.get(key)
         if old_ts is None or pr["updated_at"] > old_ts:
             changed.append(pr)
+
+    if _CUSTOM_QUERY:
+        main_keys = set(current_keys)
+        for pr in _search_prs(_CUSTOM_QUERY, "custom"):
+            key = (pr["repo"], pr["number"])
+            current_keys.add(key)
+            if key not in main_keys:
+                old_ts = old.get(key)
+                if old_ts is None or pr["updated_at"] > old_ts:
+                    changed.append(pr)
 
     stale = set(old.keys()) - current_keys
 

@@ -512,7 +512,8 @@ class GhMail(NavigationMixin, App):
         if not key:
             return
         repo, number = key
-        webbrowser.open(store.get_pr_url(repo, number))
+        if webbrowser.open(store.get_pr_url(repo, number)):
+            self.action_mark_read()
 
     def action_open_ci(self) -> None:
         key = self._selected_pr_key()
